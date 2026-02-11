@@ -2,8 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TraderRecap Pro - Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TraderRecap Pro - Sync</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -25,19 +25,24 @@
                 radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.1) 0%, transparent 35%),
                 radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.05) 0%, transparent 35%);
             background-attachment: fixed;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .glass-card {
             background: var(--card-bg);
             backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--border-color);
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
         }
 
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
+            gap: 8px;
+        }
+
+        @media (min-width: 768px) {
+            .calendar-grid { gap: 12px; }
         }
 
         .calendar-day {
@@ -49,13 +54,13 @@
             padding: 8px 4px;
             border-radius: 12px;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            background: rgba(30, 41, 59, 0.4);
+            transition: all 0.2s ease;
+            background: rgba(30, 41, 59, 0.3);
             border: 1px solid transparent;
         }
 
         .calendar-day:hover {
-            background: rgba(51, 65, 85, 0.6);
+            background: rgba(51, 65, 85, 0.5);
             border-color: rgba(255, 255, 255, 0.1);
             transform: translateY(-2px);
         }
@@ -66,21 +71,29 @@
         }
 
         .calendar-day.has-profit {
-            background: rgba(16, 185, 129, 0.08);
+            background: rgba(16, 185, 129, 0.1);
             border-color: rgba(16, 185, 129, 0.2);
         }
 
         .calendar-day.has-loss {
-            background: rgba(244, 63, 94, 0.08);
+            background: rgba(244, 63, 94, 0.1);
             border-color: rgba(244, 63, 94, 0.2);
         }
 
         .pnl-indicator {
-            font-size: 0.65rem;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 6px;
-            margin-bottom: 2px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            padding: 2px 4px;
+            border-radius: 4px;
+            text-align: center;
+            width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            .pnl-indicator { font-size: 0.75rem; padding: 2px 6px; }
         }
 
         .modal-overlay {
@@ -92,20 +105,15 @@
             z-index: 100;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
 
         .modal-overlay.active { display: flex; }
 
         .btn-primary {
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            transition: all 0.3s;
         }
         
-        .btn-primary:hover {
-            filter: brightness(1.1);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-        }
-
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -113,157 +121,136 @@
         }
 
         .hidden-section { display: none !important; }
+        
+        .sync-pulse {
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
 
-    <!-- Loading Screen -->
+    <!-- Loading Overlay -->
     <div id="loading-screen" class="fixed inset-0 bg-[#0b0f1a] flex items-center justify-center z-[200]">
         <div class="text-center">
             <div class="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-indigo-500 mb-4"></div>
-            <p class="text-slate-400 text-xs font-medium tracking-widest uppercase">Memuat Cloud...</p>
+            <p class="text-slate-400 text-xs font-bold tracking-widest uppercase">Sinkronisasi Awan...</p>
         </div>
     </div>
 
     <div class="max-w-xl w-full">
         
-        <!-- AUTH SECTION -->
-        <div id="auth-section" class="hidden-section max-w-md mx-auto mt-12">
-            <div class="glass-card p-10 rounded-[2rem]">
+        <!-- LOGIN/AUTH -->
+        <div id="auth-section" class="hidden-section max-w-md mx-auto mt-10">
+            <div class="glass-card p-8 md:p-10 rounded-[2rem]">
                 <div class="text-center mb-10">
-                    <div class="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-2xl shadow-indigo-900/50">
+                    <div class="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-2xl">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
                     </div>
-                    <h2 class="text-3xl font-extrabold text-white tracking-tight">TraderRecap Pro</h2>
-                    <p class="text-slate-400 text-sm mt-2">Pantau profit harian Anda dengan mudah.</p>
+                    <h2 id="auth-title" class="text-3xl font-black text-white">Masuk Akun</h2>
+                    <p class="text-slate-400 text-sm mt-2">Data Anda akan sinkron di semua device.</p>
                 </div>
 
-                <div class="space-y-5">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Alamat Email</label>
-                        <input type="email" id="email" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600" placeholder="nama@email.com">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Kata Sandi</label>
-                        <input type="password" id="password" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600" placeholder="••••••••">
-                    </div>
+                <div class="space-y-4">
+                    <input type="email" id="email" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Email">
+                    <input type="password" id="password" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Password">
                     
-                    <p id="auth-error" class="text-rose-400 text-xs text-center hidden py-2 bg-rose-500/10 rounded-lg border border-rose-500/20"></p>
+                    <p id="auth-error" class="text-rose-400 text-xs text-center hidden p-3 bg-rose-500/10 rounded-lg border border-rose-500/20"></p>
 
-                    <button id="btn-action" class="btn-primary w-full text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-[0.98]">
-                        Masuk Dashboard
+                    <button id="btn-action" class="btn-primary w-full text-white font-bold py-4 rounded-xl shadow-lg transition active:scale-95">
+                        Lanjutkan
                     </button>
 
-                    <div class="flex items-center gap-4 my-6">
+                    <button id="toggle-auth" class="w-full text-indigo-400 text-sm font-medium mt-2">
+                        Belum punya akun? Daftar
+                    </button>
+
+                    <div class="flex items-center gap-4 my-4">
                         <div class="h-px bg-slate-800 flex-1"></div>
                         <span class="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Atau</span>
                         <div class="h-px bg-slate-800 flex-1"></div>
                     </div>
 
-                    <button id="btn-guest" class="w-full bg-slate-800/50 hover:bg-slate-800 text-slate-300 font-bold py-4 rounded-xl border border-slate-700/50 transition transform active:scale-[0.98]">
-                        Gunakan Akun Tamu
-                    </button>
-
-                    <button id="toggle-auth" class="w-full text-indigo-400 text-sm font-medium hover:text-indigo-300 transition mt-4">
-                        Belum punya akun? Daftar gratis
+                    <button id="btn-guest" class="w-full bg-slate-800 text-slate-300 font-bold py-4 rounded-xl border border-slate-700 transition active:scale-95">
+                        Mode Tamu (Lokal)
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- APP SECTION -->
+        <!-- MAIN APP -->
         <div id="app-section" class="hidden-section w-full">
-            <!-- Header -->
-            <header class="mb-8 flex flex-wrap gap-4 justify-between items-center glass-card p-6 rounded-[1.5rem]">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-indigo-600/20 rounded-xl flex items-center justify-center border border-indigo-500/30">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <header class="mb-6 flex flex-wrap gap-4 justify-between items-center glass-card p-5 rounded-3xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-600/20 rounded-xl flex items-center justify-center border border-indigo-500/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     </div>
                     <div>
-                        <h1 id="month-display" class="text-2xl font-extrabold text-white tracking-tight leading-none mb-1">Januari 2024</h1>
-                        <p id="user-display" class="text-slate-500 text-[11px] font-medium tracking-wide uppercase">Memuat Profil...</p>
+                        <h1 id="month-display" class="text-xl font-bold text-white leading-none mb-1">Mei 2024</h1>
+                        <p id="user-display" class="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Trader</p>
                     </div>
                 </div>
                 
-                <div class="flex items-center bg-slate-900/80 p-1.5 rounded-xl border border-slate-800">
-                    <button onclick="changeMonth(-1)" class="p-2.5 hover:bg-slate-800 rounded-lg transition text-slate-400 hover:text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                    <button onclick="changeMonth(1)" class="p-2.5 hover:bg-slate-800 rounded-lg transition text-slate-400 hover:text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-                    </button>
-                    <div class="w-px h-6 bg-slate-800 mx-1"></div>
-                    <button onclick="logout()" class="p-2.5 text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                    </button>
+                <div class="flex items-center bg-slate-900 p-1 rounded-xl">
+                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+                    <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                    <div class="w-px h-4 bg-slate-800 mx-1"></div>
+                    <button onclick="handleLogout()" class="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg></button>
                 </div>
             </header>
 
-            <!-- Stats Grid -->
-            <div class="grid grid-cols-2 gap-4 mb-8">
-                <div class="glass-card p-6 rounded-[1.5rem] relative overflow-hidden group">
-                    <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                    </div>
-                    <p class="text-[10px] text-slate-500 uppercase font-extrabold tracking-[0.2em] mb-2">Performa Mingguan</p>
-                    <p id="weekly-pnl" class="text-3xl font-black tabular-nums tracking-tight">$0.00</p>
+            <!-- Stat Boxes -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="glass-card p-5 rounded-3xl border-l-4 border-l-indigo-500">
+                    <p class="text-[9px] text-slate-500 uppercase font-black mb-1">Profit Minggu Ini</p>
+                    <p id="weekly-pnl" class="text-2xl font-black tabular-nums">$0.00</p>
                 </div>
-                <div class="glass-card p-6 rounded-[1.5rem] relative overflow-hidden group">
-                    <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                    </div>
-                    <p class="text-[10px] text-slate-500 uppercase font-extrabold tracking-[0.2em] mb-2">Total Bulan Ini</p>
-                    <p id="monthly-pnl" class="text-3xl font-black tabular-nums tracking-tight">$0.00</p>
+                <div class="glass-card p-5 rounded-3xl border-l-4 border-l-emerald-500">
+                    <p class="text-[9px] text-slate-500 uppercase font-black mb-1">Profit Bulan Ini</p>
+                    <p id="monthly-pnl" class="text-2xl font-black tabular-nums">$0.00</p>
                 </div>
             </div>
 
-            <!-- Calendar Section -->
-            <div class="glass-card p-6 md:p-8 rounded-[2rem]">
-                <div class="calendar-grid text-center text-[10px] font-black text-slate-600 mb-6 uppercase tracking-widest">
+            <!-- Calendar -->
+            <div class="glass-card p-5 md:p-6 rounded-[2rem]">
+                <div class="calendar-grid text-center text-[10px] font-black text-slate-600 mb-4 uppercase">
                     <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
                 </div>
                 <div id="calendar-body" class="calendar-grid"></div>
             </div>
 
-            <!-- Footer Cloud Status -->
-            <div class="mt-10 flex flex-col items-center">
-                 <div class="flex items-center gap-3 px-5 py-2.5 bg-slate-900/50 rounded-full border border-slate-800/50">
-                    <div id="sync-indicator" class="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                    <span id="sync-text" class="text-[10px] text-slate-400 uppercase font-bold tracking-[0.15em]">Sistem Online</span>
+            <!-- Footer Sync Status -->
+            <div class="mt-8 flex justify-center">
+                 <div class="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-full border border-slate-800">
+                    <div id="sync-dot" class="w-2 h-2 bg-slate-500 rounded-full"></div>
+                    <span id="sync-status" class="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Offline</span>
                  </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL INPUT PNL -->
-    <div id="modal" class="modal-overlay px-4">
-        <div class="glass-card p-8 rounded-[2rem] w-full max-w-sm border-t border-white/10 shadow-3xl">
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h3 id="modal-date-label" class="text-xl font-bold text-white mb-1">20 Mei 2024</h3>
-                    <p class="text-slate-400 text-xs">Catat hasil perdagangan Anda.</p>
-                </div>
-                <button onclick="closeModal()" class="p-2 hover:bg-slate-800 rounded-full transition text-slate-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
+    <!-- MODAL -->
+    <div id="modal" class="modal-overlay">
+        <div class="glass-card p-8 rounded-3xl w-full max-w-sm shadow-2xl">
+            <h3 id="modal-date-label" class="text-xl font-bold text-white mb-1">Tanggal</h3>
+            <p class="text-slate-400 text-xs mb-6">Input Profit (Positif) atau Loss (Negatif).</p>
             
-            <div class="space-y-6">
-                <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <span class="text-indigo-400 font-bold">$</span>
-                    </div>
-                    <input type="number" id="pnl-input" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-5 pl-10 text-2xl font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-800" placeholder="0.00">
-                </div>
+            <div class="space-y-4">
+                <input type="number" id="pnl-input" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xl font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0.00">
                 
-                <div class="flex flex-col gap-3">
-                    <button id="btn-save-trade" class="btn-primary w-full py-4 rounded-2xl font-extrabold text-white tracking-wide shadow-xl active:scale-[0.98]">SIMPAN PERUBAHAN</button>
-                    
-                    <button id="btn-delete-trade" class="w-full py-4 text-rose-500 font-bold hover:bg-rose-500/10 rounded-2xl transition-all hidden border border-rose-500/20">HAPUS DATA</button>
+                <div class="flex flex-col gap-2">
+                    <button id="btn-save" class="btn-primary w-full py-4 rounded-xl font-bold text-white shadow-xl active:scale-95">SIMPAN DATA</button>
+                    <button id="btn-delete" class="w-full py-4 text-rose-500 font-bold text-sm hidden">Hapus Data Hari Ini</button>
+                    <button onclick="closeModal()" class="w-full py-2 text-slate-500 text-xs">Batal</button>
                 </div>
             </div>
         </div>
@@ -271,207 +258,189 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, updateDoc, setDoc, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Konfigurasi Firebase Anda
         const firebaseConfig = {
             apiKey: "AIzaSyARhUT6jldJ8SwVyRx9vQTVc6n0UzqiAOw",
             authDomain: "kalender-recap.firebaseapp.com",
             projectId: "kalender-recap",
             storageBucket: "kalender-recap.firebasestorage.app",
             messagingSenderId: "603264142144",
-            appId: "1:603264142144:web:e516baec2acebe0e0a08a5",
-            measurementId: "G-RNNS0VBBB7"
+            appId: "1:603264142144:web:e516baec2acebe0e0a08a5"
         };
 
-        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'trader-recap-pro-v1';
+        const currentAppId = "trader-recap-sync-v1";
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let currentUser = null;
+        let user = null;
         let trades = {};
-        let currentNavDate = new Date();
+        let currentMonth = new Date();
         let selectedDateStr = "";
-        let isRegistering = false;
-        let unsubscribeTrades = null;
+        let isRegisterMode = false;
+        let unsubscribe = null;
 
-        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
-        onAuthStateChanged(auth, (user) => {
-            document.getElementById('loading-screen').classList.add('hidden-section');
-            if (user) {
-                currentUser = user;
-                showApp();
+        // UI Helpers
+        const el = (id) => document.getElementById(id);
+
+        onAuthStateChanged(auth, (u) => {
+            el('loading-screen').classList.add('hidden-section');
+            user = u;
+            if (u) {
+                el('auth-section').classList.add('hidden-section');
+                el('app-section').classList.remove('hidden-section');
+                el('user-display').textContent = u.isAnonymous ? "Mode Tamu" : u.email;
+                startSync();
             } else {
-                currentUser = null;
-                showAuth();
+                el('app-section').classList.add('hidden-section');
+                el('auth-section').classList.remove('hidden-section');
+                if (unsubscribe) unsubscribe();
             }
         });
 
-        function showAuth() {
-            if (unsubscribeTrades) unsubscribeTrades();
-            document.getElementById('app-section').classList.add('hidden-section');
-            document.getElementById('auth-section').classList.remove('hidden-section');
-        }
-
-        function showApp() {
-            document.getElementById('auth-section').classList.add('hidden-section');
-            document.getElementById('app-section').classList.remove('hidden-section');
-            document.getElementById('user-display').textContent = currentUser.isAnonymous ? "Sesi Tamu Aktif" : (currentUser.email || "Trader");
-            setupDataListener();
-        }
-
-        async function handleAuthAction() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const errorEl = document.getElementById('auth-error');
-            if (!email || !password) return;
-
-            const btn = document.getElementById('btn-action');
-            btn.disabled = true;
-            btn.innerHTML = `<span class="flex items-center justify-center gap-2"><div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Memproses...</span>`;
+        // Auth Actions
+        el('btn-action').onclick = async () => {
+            const email = el('email').value;
+            const pass = el('password').value;
+            if (!email || !pass) return;
 
             try {
-                errorEl.classList.add('hidden');
-                if (isRegistering) {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                } else {
-                    await signInWithEmailAndPassword(auth, email, password);
-                }
-            } catch (error) {
-                errorEl.textContent = "Gagal masuk. Cek email atau kata sandi.";
-                errorEl.classList.remove('hidden');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = isRegistering ? "Buat Akun Sekarang" : "Masuk Dashboard";
+                el('auth-error').classList.add('hidden');
+                if (isRegisterMode) await createUserWithEmailAndPassword(auth, email, pass);
+                else await signInWithEmailAndPassword(auth, email, pass);
+            } catch (err) {
+                el('auth-error').textContent = "Kesalahan: " + err.message;
+                el('auth-error').classList.remove('hidden');
             }
-        }
-
-        [document.getElementById('email'), document.getElementById('password')].forEach(input => {
-            input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleAuthAction(); });
-        });
-
-        document.getElementById('btn-action').onclick = handleAuthAction;
-        document.getElementById('btn-guest').onclick = () => signInAnonymously(auth);
-        document.getElementById('toggle-auth').onclick = () => {
-            isRegistering = !isRegistering;
-            document.querySelector('#auth-section h2').textContent = isRegistering ? "Daftar Akun Baru" : "TraderRecap Pro";
-            document.getElementById('btn-action').textContent = isRegistering ? "Buat Akun Sekarang" : "Masuk Dashboard";
-            document.getElementById('toggle-auth').textContent = isRegistering ? "Sudah punya akun? Login" : "Belum punya akun? Daftar gratis";
         };
 
-        window.logout = () => signOut(auth);
+        el('btn-guest').onclick = () => signInAnonymously(auth);
+        el('toggle-auth').onclick = () => {
+            isRegisterMode = !isRegisterMode;
+            el('auth-title').textContent = isRegisterMode ? "Daftar Akun" : "Masuk Akun";
+            el('toggle-auth').textContent = isRegisterMode ? "Sudah punya akun? Login" : "Belum punya akun? Daftar";
+        };
+        window.handleLogout = () => signOut(auth);
 
-        function setupDataListener() {
-            if (!currentUser) return;
-            const userDocRef = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'data', 'recap_records');
-            const syncInd = document.getElementById('sync-indicator');
-            const syncTxt = document.getElementById('sync-text');
-
-            unsubscribeTrades = onSnapshot(userDocRef, (snap) => {
-                trades = snap.exists() ? (snap.data().records || {}) : {};
+        // Sync Logic
+        function startSync() {
+            const userDocRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'settings', 'trades_data');
+            
+            unsubscribe = onSnapshot(userDocRef, (doc) => {
+                trades = doc.exists() ? (doc.data().records || {}) : {};
                 renderCalendar();
-                syncInd.className = "w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]";
-                syncTxt.textContent = "Data Cloud Terhubung";
-            }, () => {
-                syncInd.className = "w-2 h-2 bg-rose-500 rounded-full";
-                syncTxt.textContent = "Gagal Sinkron";
+                el('sync-dot').className = "w-2 h-2 bg-emerald-500 rounded-full sync-pulse";
+                el('sync-status').textContent = "Tersinkron";
+            }, (err) => {
+                console.error(err);
+                el('sync-dot').className = "w-2 h-2 bg-rose-500 rounded-full";
+                el('sync-status').textContent = "Gagal Sinkron";
             });
         }
 
-        async function saveTrade(isDeletion = false) {
-            if (!currentUser) return;
-            const val = document.getElementById('pnl-input').value;
-            const userDocRef = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'data', 'recap_records');
+        // Calendar Logic
+        window.changeMonth = (val) => {
+            currentMonth.setMonth(currentMonth.getMonth() + val);
+            renderCalendar();
+        };
 
-            try {
-                if (isDeletion) {
-                    await updateDoc(userDocRef, { [`records.${selectedDateStr}`]: deleteField() });
-                } else if (val !== "") {
-                    await setDoc(userDocRef, { records: { [selectedDateStr]: parseFloat(val) } }, { merge: true });
-                }
-                closeModal();
-            } catch (e) { alert("Kesalahan simpan. Cek internet."); }
-        }
-
-        document.getElementById('pnl-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') saveTrade(false); });
-        document.getElementById('btn-save-trade').onclick = () => saveTrade(false);
-        document.getElementById('btn-delete-trade').onclick = () => saveTrade(true);
-
-        window.renderCalendar = function() {
-            const calendarBody = document.getElementById('calendar-body');
-            const monthDisplay = document.getElementById('month-display');
-            if (!calendarBody) return;
+        function renderCalendar() {
+            const body = el('calendar-body');
+            body.innerHTML = '';
             
-            calendarBody.innerHTML = '';
-            const yr = currentNavDate.getFullYear();
-            const mo = currentNavDate.getMonth();
-            monthDisplay.textContent = `${monthNames[mo]} ${yr}`;
+            const yr = currentMonth.getFullYear();
+            const mo = currentMonth.getMonth();
+            el('month-display').textContent = `${months[mo]} ${yr}`;
 
             const firstDay = new Date(yr, mo, 1).getDay();
             const daysInMonth = new Date(yr, mo + 1, 0).getDate();
-
-            for (let i = 0; i < firstDay; i++) calendarBody.appendChild(document.createElement('div'));
-
             const todayStr = new Date().toISOString().split('T')[0];
 
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateStr = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const dayDiv = document.createElement('div');
-                dayDiv.className = 'calendar-day';
-                if (dateStr === todayStr) dayDiv.classList.add('today');
+            for (let i = 0; i < firstDay; i++) body.appendChild(document.createElement('div'));
 
-                const val = trades[dateStr];
+            for (let d = 1; d <= daysInMonth; d++) {
+                // Gunakan template literal agar format tanggal konsisten di semua browser
+                const dStr = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day';
+                if (dStr === todayStr) dayEl.classList.add('today');
+
+                const val = trades[dStr];
                 if (val !== undefined) {
-                    dayDiv.classList.add(val >= 0 ? 'has-profit' : 'has-loss');
-                    dayDiv.innerHTML = `
-                        <span class="text-[10px] text-slate-500 font-bold">${day}</span>
+                    dayEl.classList.add(val >= 0 ? 'has-profit' : 'has-loss');
+                    dayEl.innerHTML = `
+                        <span class="text-[10px] text-slate-500 font-bold">${d}</span>
                         <div class="pnl-indicator ${val >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
-                            ${val >= 0 ? '▲' : '▼'} ${Math.abs(val)}
+                            ${val >= 0 ? '+' : ''}${val}
                         </div>
                     `;
                 } else {
-                    dayDiv.innerHTML = `<span class="text-sm font-bold text-slate-400">${day}</span><div class="w-1 h-1 bg-slate-800 rounded-full"></div>`;
+                    dayEl.innerHTML = `<span class="text-xs font-bold text-slate-400">${d}</span>`;
                 }
 
-                dayDiv.onclick = () => openModal(dateStr);
-                calendarBody.appendChild(dayDiv);
+                dayEl.onclick = () => openModal(dStr);
+                body.appendChild(dayEl);
             }
             updateStats();
         }
 
-        window.openModal = function(dateStr) {
+        // Modal & Save
+        window.openModal = (dateStr) => {
             selectedDateStr = dateStr;
             const hasData = trades[dateStr] !== undefined;
-            document.getElementById('modal-date-label').textContent = new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-            document.getElementById('pnl-input').value = hasData ? trades[dateStr] : '';
-            document.getElementById('btn-delete-trade').classList.toggle('hidden', !hasData);
-            document.getElementById('modal').classList.add('active');
-            setTimeout(() => document.getElementById('pnl-input').focus(), 150);
+            const dateObj = new Date(dateStr);
+            el('modal-date-label').textContent = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            el('pnl-input').value = hasData ? trades[dateStr] : '';
+            el('btn-delete').classList.toggle('hidden', !hasData);
+            el('modal').classList.add('active');
+            setTimeout(() => el('pnl-input').focus(), 100);
+        };
+
+        window.closeModal = () => el('modal').classList.remove('active');
+
+        async function save(isDelete = false) {
+            if (!user) return;
+            const userDocRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'settings', 'trades_data');
+            const val = parseFloat(el('pnl-input').value);
+
+            try {
+                if (isDelete) {
+                    await updateDoc(userDocRef, { [`records.${selectedDateStr}`]: deleteField() });
+                } else if (!isNaN(val)) {
+                    await setDoc(userDocRef, { records: { [selectedDateStr]: val } }, { merge: true });
+                }
+                closeModal();
+            } catch (e) {
+                alert("Gagal menyimpan data ke cloud.");
+            }
         }
 
-        window.closeModal = () => document.getElementById('modal').classList.remove('active');
-        window.changeMonth = (dir) => { currentNavDate.setMonth(currentNavDate.getMonth() + dir); renderCalendar(); }
+        el('btn-save').onclick = () => save(false);
+        el('btn-delete').onclick = () => save(true);
 
         function updateStats() {
-            let weekly = 0, monthly = 0;
+            let weekSum = 0, monthSum = 0;
             const now = new Date();
-            const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7);
+            const weekLimit = new Date(); weekLimit.setDate(now.getDate() - 7);
 
-            Object.entries(trades).forEach(([dateStr, pnl]) => {
+            Object.entries(trades).forEach(([dateStr, val]) => {
                 const d = new Date(dateStr);
-                if (d.getMonth() === currentNavDate.getMonth() && d.getFullYear() === currentNavDate.getFullYear()) monthly += pnl;
-                if (d >= weekAgo && d <= now) weekly += pnl;
+                if (d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear()) monthSum += val;
+                if (d >= weekLimit && d <= now) weekSum += val;
             });
 
-            const updateEl = (id, val) => {
-                const el = document.getElementById(id);
-                el.textContent = `${val >= 0 ? '+' : '-'}$${Math.abs(val).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-                el.className = `text-3xl font-black tabular-nums tracking-tight ${val >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+            const format = (id, v) => {
+                const item = el(id);
+                item.textContent = (v >= 0 ? '+$' : '-$') + Math.abs(v).toFixed(2);
+                item.className = `text-2xl font-black tabular-nums ${v >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
             };
-            updateEl('weekly-pnl', weekly);
-            updateEl('monthly-pnl', monthly);
+            format('weekly-pnl', weekSum);
+            format('monthly-pnl', monthSum);
         }
     </script>
 </body>
